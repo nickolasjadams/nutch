@@ -21,4 +21,5 @@ public interface CloudSearchConstants {
   public static final String REGION = "region";
   public static final String BATCH_DUMP = "batch.dump";
   public static final String MAX_DOCS_BATCH = "batch.maxSize";
+  public static final String TEMP_DOCS_PATH = "temp.docs.path";
 }

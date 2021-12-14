@@ -87,6 +87,8 @@ public class CloudSearchIndexWriter implements IndexWriter {
   private String endpoint;
   private String regionName;
 
+  private String tempDocsPath;
+
   @Override
   public void open(Configuration conf, String name) throws IOException {
     //Implementation not required
@@ -100,6 +102,16 @@ public class CloudSearchIndexWriter implements IndexWriter {
     dumpBatchFilesToTemp = parameters
         .getBoolean(CloudSearchConstants.BATCH_DUMP, false);
     this.regionName = parameters.get(CloudSearchConstants.REGION);
+
+    this.tempDocsPath = parameters.get(CloudSearchConstants.TEMP_DOCS_PATH)
+    if (StringUtils.isBlank(this.tempDocsPath)) {
+      this.tempDocsPath = System.getProperty("java.io.tmpdir");
+      String message = "Missing temporary docs path. Using " + this.tempDocsPath + ". You may set it via -D "
+       + CloudSearchConstants.TEMP_DOCS_PATH + " or in index-writers.xml";
+       LOG.info(message);
+    } else {
+      LOG.info("Temporary CloudSearch Documents are being built to " + this.tempDocsPath);
+    }
 
     if (StringUtils.isBlank(endpoint) && !dumpBatchFilesToTemp) {
       String message = "Missing CloudSearch endpoint. Should set it set via -D "
@@ -134,11 +146,14 @@ public class CloudSearchIndexWriter implements IndexWriter {
     DescribeDomainsResult domains = cl
         .describeDomains(new DescribeDomainsRequest());
 
+    LOG.info("Domain Endpoint Given: " + endpoint)
     Iterator<DomainStatus> dsiter = domains.getDomainStatusList().iterator();
     while (dsiter.hasNext()) {
       DomainStatus ds = dsiter.next();
+      LOG.info("equal to ? " + ds);
       if (ds.getDocService().getEndpoint().equals(endpoint)) {
         domainName = ds.getDomainName();
+        LOG.info("Match found for endpoint! " + domainName);
         break;
       }
     }
@@ -295,7 +310,7 @@ public class CloudSearchIndexWriter implements IndexWriter {
 
     if (dumpBatchFilesToTemp) {
       try {
-        File temp = File.createTempFile("CloudSearch_", ".json");
+        File temp = File.createTempFile("CloudSearch_", ".json", this.tempDocsPath);
         FileUtils.writeByteArrayToFile(temp, bb);
         LOG.info("Wrote batch file {}", temp.getName());
       } catch (IOException e1) {
@@ -364,6 +379,10 @@ public class CloudSearchIndexWriter implements IndexWriter {
         new AbstractMap.SimpleEntry<>(
             "Maximum number of documents to send as a batch to CloudSearch.",
             this.maxDocsInBatch));
+    properties.put(CloudSearchConstants.TEMP_DOCS_PATH,
+        new AbstractMap.SimpleEntry<>(
+            "Temporary Document Directory override. Let's you specify where you'd like to write your documents when batch.dump is set to true",
+            this.tempDocsPath));
 
     return properties;
   }
