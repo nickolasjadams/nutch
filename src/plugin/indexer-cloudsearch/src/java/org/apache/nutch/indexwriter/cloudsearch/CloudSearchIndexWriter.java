@@ -119,10 +119,12 @@ public class CloudSearchIndexWriter implements IndexWriter {
       LOG.info("Temporary CloudSearch Documents are being built to " + this.tempDocsPath);
     }
 
-    if (!StringUtils.isBlank(parameters.get(CloudSearchConstants.BATCH_DUMP_UPLOAD).toString())) {
-      if (dumpBatchFilesToTemp) {
-        LOG.info("They are also being uploaded to AWS CloudSearch Domain.");
-        LOG.info("Note: Batch Dump and Batch Upload do not need to be set to upload.");
+    if (parameters.get(CloudSearchConstants.BATCH_DUMP_UPLOAD) != null) {
+      if (!StringUtils.isBlank(parameters.get(CloudSearchConstants.BATCH_DUMP_UPLOAD).toString())) {
+        if (dumpBatchFilesToTemp) {
+          LOG.info("They are also being uploaded to AWS CloudSearch Domain.");
+          LOG.info("Note: Batch Dump and Batch Upload do not need to be set to upload.");
+        }
       }
     }
 
