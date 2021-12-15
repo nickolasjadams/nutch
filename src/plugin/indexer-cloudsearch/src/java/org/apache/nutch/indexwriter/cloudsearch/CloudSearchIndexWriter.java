@@ -79,6 +79,7 @@ public class CloudSearchIndexWriter implements IndexWriter {
   private int numDocsInBatch = 0;
 
   private boolean dumpBatchFilesToTemp = false;
+  private boolean uploadTempBatchFiles = false;
 
   private Configuration conf;
 
@@ -99,11 +100,16 @@ public class CloudSearchIndexWriter implements IndexWriter {
     //    LOG.debug("CloudSearchIndexWriter.open() name={} ", name);
 
     endpoint = parameters.get(CloudSearchConstants.ENDPOINT);
+
     dumpBatchFilesToTemp = parameters
         .getBoolean(CloudSearchConstants.BATCH_DUMP, false);
+    
+    uploadTempBatchFiles = parameters
+        .getBoolean(CloudSearchConstants.BATCH_DUMP_UPLOAD, !dumpBatchFilesToTemp);
+
     this.regionName = parameters.get(CloudSearchConstants.REGION);
 
-    this.tempDocsPath = parameters.get(CloudSearchConstants.TEMP_DOCS_PATH)
+    this.tempDocsPath = parameters.get(CloudSearchConstants.TEMP_DOCS_PATH);
     if (StringUtils.isBlank(this.tempDocsPath)) {
       this.tempDocsPath = System.getProperty("java.io.tmpdir");
       String message = "Missing temporary docs path. Using " + this.tempDocsPath + ". You may set it via -D "
@@ -111,6 +117,13 @@ public class CloudSearchIndexWriter implements IndexWriter {
        LOG.info(message);
     } else {
       LOG.info("Temporary CloudSearch Documents are being built to " + this.tempDocsPath);
+    }
+
+    if (!StringUtils.isBlank(parameters.get(CloudSearchConstants.BATCH_DUMP_UPLOAD).toString())) {
+      if (dumpBatchFilesToTemp) {
+        LOG.info("They are also being uploaded to AWS CloudSearch Domain.");
+        LOG.info("Note: Batch Dump and Batch Upload do not need to be set to upload.");
+      }
     }
 
     if (StringUtils.isBlank(endpoint) && !dumpBatchFilesToTemp) {
@@ -126,9 +139,11 @@ public class CloudSearchIndexWriter implements IndexWriter {
     buffer = new StringBuffer(MAX_SIZE_BATCH_BYTES).append('[');
 
     if (dumpBatchFilesToTemp) {
-      // only dumping to local file
-      // no more config required
-      return;
+      if (!uploadTempBatchFiles) {
+        // only dumping to local file
+        // no more config required
+        return;
+      }
     }
 
     if (StringUtils.isBlank(endpoint)) {
@@ -146,7 +161,7 @@ public class CloudSearchIndexWriter implements IndexWriter {
     DescribeDomainsResult domains = cl
         .describeDomains(new DescribeDomainsRequest());
 
-    LOG.info("Domain Endpoint Given: " + endpoint)
+    LOG.info("Domain Endpoint Given: " + endpoint);
     Iterator<DomainStatus> dsiter = domains.getDomainStatusList().iterator();
     while (dsiter.hasNext()) {
       DomainStatus ds = dsiter.next();
@@ -310,7 +325,7 @@ public class CloudSearchIndexWriter implements IndexWriter {
 
     if (dumpBatchFilesToTemp) {
       try {
-        File temp = File.createTempFile("CloudSearch_", ".json", this.tempDocsPath);
+        File temp = File.createTempFile("CloudSearch_", ".json", new File(this.tempDocsPath));
         FileUtils.writeByteArrayToFile(temp, bb);
         LOG.info("Wrote batch file {}", temp.getName());
       } catch (IOException e1) {
@@ -375,6 +390,9 @@ public class CloudSearchIndexWriter implements IndexWriter {
     properties.put(CloudSearchConstants.BATCH_DUMP,
         new AbstractMap.SimpleEntry<>("true to send documents to a local file.",
             this.dumpBatchFilesToTemp));
+    properties.put(CloudSearchConstants.BATCH_DUMP_UPLOAD,
+        new AbstractMap.SimpleEntry<>("Use in conjuction with batch.dump. true to send temporary local documents and upload to CloudSearch.",
+            this.uploadTempBatchFiles));
     properties.put(CloudSearchConstants.MAX_DOCS_BATCH,
         new AbstractMap.SimpleEntry<>(
             "Maximum number of documents to send as a batch to CloudSearch.",
