@@ -167,7 +167,6 @@ public class CloudSearchIndexWriter implements IndexWriter {
     Iterator<DomainStatus> dsiter = domains.getDomainStatusList().iterator();
     while (dsiter.hasNext()) {
       DomainStatus ds = dsiter.next();
-      LOG.info("equal to ? " + ds);
       if (ds.getDocService().getEndpoint().equals(endpoint)) {
         domainName = ds.getDomainName();
         LOG.info("Match found for endpoint! " + domainName);
